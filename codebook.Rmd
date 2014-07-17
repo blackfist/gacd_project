@@ -1,0 +1,53 @@
+# Codebook
+
+## Fields
+Here is what's contained in the data file.
+
+```{r}
+tempdata <- read.csv('file1.csv')
+names(tempdata)
+```
+
+## Transformation
+The file was made by combining the x\_train, y\_train, x\_test, y\_test, subjects\_test and subjects\_train files together like this
+
+```
+x_train <- read.table("UCI HAR Dataset/train/X_train.txt")
+y_train <- read.table("UCI HAR Dataset/train/Y_train.txt")
+train_subjects <- read.table("UCI HAR Dataset/train/subject_train.txt")
+train_merged_together <- data.frame(cbind(x_train, y_train, train_subjects))
+rm(x_train, y_train, train_subjects)
+
+x_test <- read.table("UCI HAR Dataset/test/X_test.txt")
+y_test <- read.table("UCI HAR Dataset/test/y_test.txt")
+test_subjects <- read.table("UCI HAR Dataset/test/subject_test.txt")
+test_merged_together <- data.frame(cbind(x_test, y_test, test_subjects))
+rm(x_test, y_test, test_subjects)
+
+finalMerger <- rbind(train_merged_together, test_merged_together)
+rm(train_merged_together, test_merged_together)
+```
+
+Then the features were read in from features.txt and we use the grep command to find all the fields that have "-mean" or
+"-std" in the field name. This logical vector is used to subset the merged data from above to get a data set trimmed down to 
+the interesting data.
+
+```
+# Now how to get the interesting features? Read from features.txt and use grep to find
+# which fields have mean or std in them.
+feature_list <- read.table("UCI HAR Dataset/features.txt")
+interesting_columns <- grep("(-mean|-std)", feature_list$V2)
+# we need the last two columns also so we'll manually add that to our interesting_columns
+interesting_columns <- c(interesting_columns, 562, 563)
+trimmed_data <- finalMerger[, interesting_columns]
+names(trimmed_data) <- c(grep("(-mean|-std)", feature_list$V2, value = T),
+                        "activityid", "subjectid")
+```
+
+To get the mean value of each variable for each permutation of subjectid and activityid, we start by melting the dataset and
+identifying subjectid and activityid as identity variables. Then we use dcast to get the mean for each of the variables.
+
+```
+melted_data <- melt(trimmed_data, id.vars=c("activityid","subjectid"))
+final_result <- dcast(melted_data, subjectid + activityid ~ variable, mean)
+```
